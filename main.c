@@ -5,7 +5,8 @@
 
 enum SESSION_STATUS {
     EXIT,
-    COMMAND,
+    COMMAND, // Start, TODO change name
+    TABLE,
     INSERT,
     SELECT,
     UPDATE,
@@ -24,6 +25,8 @@ char* read_input() {
 void print_prompt(int session_status) {
     if (session_status == COMMAND) {
         printf("db> ");
+    } else if(session_status == TABLE) {
+        printf("TABLE> ");
     } else if(session_status == INSERT) {
         printf("INSERT> ");
     } else if(session_status == SELECT) {
@@ -42,8 +45,9 @@ void execute(int* session_status, char* command) {
         *session_status = EXIT;
     } else if (strcmp(command, "insert\n") == 0) { 
         *session_status = INSERT;
+    } else if (strcmp(command, "table\n") == 0) {
+        *session_status = TABLE;
     }
-
 }
 
 int main() {
@@ -56,6 +60,12 @@ int main() {
         free(input);
     }
 }
+
+// File for table names
+// > TABLE table_name
+// table_name> INSERT
+// col1> input for col1
+// col2> input for col2
 
 // Insert
 // Select
