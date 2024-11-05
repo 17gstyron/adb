@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+char LEADER_KEY = ':';
+
 enum SESSION_STATUS {
     EXIT,
     COMMAND, // Start, TODO change name
@@ -26,7 +28,7 @@ char* read_input() {
     return buffer;
 }
 
-int init() {
+int setup() {
     const char *table_dir_name = "tables";
     if (mkdir(table_dir_name, 0755) == -1) {
         perror("Error creating directory");
@@ -78,32 +80,44 @@ int create_table(const char *filename) {
     return 0;
 }
 
+char* build_command(char *command) {
+    char *prefix = &LEADER_KEY;
+    char *suffix = "\n";
+    char *cmd = malloc(strlen(prefix) + strlen(command) + strlen(suffix) + 1);
+
+    strcpy(cmd, prefix);
+    strcat(cmd, command);
+    strcat(cmd, suffix);
+    return cmd;
+}
+
+
 void execute(int *session_status, char *command) {
-  // check that command is valid
-  // run it if so
-  if (strcmp(command, "exit\n") == 0) {
-    *session_status = EXIT;
-  } else if (*command == 27) { // escape + enter to return to start
-    *session_status = COMMAND;
-  } else if (*session_status == TABLE) {
-        if (strcmp(command, "insert\n") == 0) {
+    
+
+    if (strcmp(command, build_command("exit")) == 0) {
+        *session_status = EXIT;
+    } else if (*command == 27) { // escape + enter to return to start
+        *session_status = COMMAND;
+    } else if (*session_status == TABLE) {
+        if (strcmp(command, build_command("insert")) == 0) {
             *session_status = INSERT;
         }
   } else if (*session_status == CREATETABLE) {
     remove_newline(command);
     int t = create_table(command);
-    if (t) {
+    if (t == 0) {
         *session_status = COMMAND;
     }
-  } else if (strcmp(command, "table\n") == 0) {
+  } else if (strcmp(command, build_command("table")) == 0) {
     *session_status = TABLE;
-  } else if (strcmp(command, "createtable\n") == 0) {
+  } else if (strcmp(command, build_command("createtable")) == 0) {
     *session_status = CREATETABLE;
   }
 }
 
 int main() {
-    init();
+    setup();
     int session_status = COMMAND;
 	while (session_status) {
         print_prompt(session_status);
