@@ -49,7 +49,7 @@ void remove_newline(char *command) {
 
 void print_prompt(int session_status) {
     if (session_status == COMMAND) {
-        printf("db> ");
+        printf("> ");
     } else if(session_status == TABLE) {
         printf("TABLE> ");
     } else if(session_status == CREATETABLE) {
@@ -138,5 +138,7 @@ int main() {
 // Update
 // Delete
 //
-// Every row has unique id
+//
+// TODO:
+// change session_status to mode
 //
