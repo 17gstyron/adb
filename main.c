@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <stdint.h>
 
 char LEADER_KEY = ':';
 
@@ -12,6 +13,7 @@ enum SESSION_STATUS {
     COMMAND, // Start, TODO change name
     TABLE,
     CREATETABLE,
+    CREATECOLUMN,
     USETABLE,
     INSERT,
     SELECT,
@@ -54,7 +56,9 @@ void print_prompt(int session_status) {
         printf("TABLE> ");
     } else if(session_status == CREATETABLE) {
         printf("CREATE_TABLE> ");
-    }  else if(session_status == INSERT) {
+    } else if(session_status == CREATECOLUMN) {
+        printf("CREATE_COLUMN> ");
+    } else if(session_status == INSERT) {
         printf("INSERT> ");
     } else if(session_status == SELECT) {
         printf("SELECT> ");
@@ -65,7 +69,7 @@ void print_prompt(int session_status) {
     }
 }
 
-int create_table(const char *filename) {
+int create_table(const char filename[64]) {
     char path[256];
     strcpy(path, "tables/");
     strcat(path, filename);
@@ -74,6 +78,58 @@ int create_table(const char *filename) {
     file = fopen(path, "w");
     if (file == NULL) {
         perror("Error opening file");
+        return -1;
+    }
+    fclose(file);
+    return 0;
+}
+
+uint32_t update_column_count(FILE *file) {
+    uint32_t num_columns = 0;
+    if (!file) {
+        perror("Failed to open file");
+        return -1;
+    }
+
+    if (fseek(file, 0, SEEK_SET) != 0) {
+        perror("fseek error");
+        return -1;
+    }    
+
+    // Read the number of columns from the start of the file
+    fread(&num_columns, sizeof(uint32_t), 1, file);
+    if (fseek(file, 0, SEEK_SET) != 0) {
+        perror("fseek error");
+        return -1;
+    }
+
+    num_columns++;
+    fwrite(&num_columns, sizeof(uint32_t), 1, file);
+
+    printf("%u", num_columns);
+    return num_columns;
+}
+
+int create_column(const char table_name[64], const char column_name[64]) {
+    // open table file
+    // 64 char col name
+    // 256 char value
+    // 320 total
+    // no idea if this makes sense
+    //
+    char path[256];
+    strcpy(path, "tables/");
+    strcat(path, table_name);
+    FILE *file;
+    file = fopen(path, "rb+");
+    uint32_t num_columns = update_column_count(file);
+    
+    // seek
+    fseek(file, sizeof(uint32_t) + (sizeof(char[64]) * num_columns), SEEK_SET);
+
+    // write
+    int results = fwrite(column_name, sizeof(char[64]), 1, file);
+    if (results) {
         return -1;
     }
     fclose(file);
@@ -92,9 +148,7 @@ char* build_command(char *command) {
 }
 
 
-void execute(int *session_status, char *command) {
-    
-
+void execute(int *session_status, char *command, char *current_table) {
     if (strcmp(command, build_command("exit")) == 0) {
         *session_status = EXIT;
     } else if (*command == 27) { // escape + enter to return to start
@@ -103,26 +157,34 @@ void execute(int *session_status, char *command) {
         if (strcmp(command, build_command("insert")) == 0) {
             *session_status = INSERT;
         }
-  } else if (*session_status == CREATETABLE) {
-    remove_newline(command);
-    int t = create_table(command);
-    if (t == 0) {
-        *session_status = COMMAND;
+    } else if (*session_status == CREATETABLE) {
+        remove_newline(command);
+        int t = create_table(command);
+        if (t == 0) {
+            strcpy(current_table, command);
+            *session_status = CREATECOLUMN;
+        } else {
+            // error
+        }
+    } else if (*session_status == CREATECOLUMN) {
+        remove_newline(command);
+        int t = create_column(current_table, command);
+    } else if (strcmp(command, build_command("table")) == 0) {
+        *session_status = TABLE;
+    } else if (strcmp(command, build_command("createtable")) == 0) {
+        *session_status = CREATETABLE;
     }
-  } else if (strcmp(command, build_command("table")) == 0) {
-    *session_status = TABLE;
-  } else if (strcmp(command, build_command("createtable")) == 0) {
-    *session_status = CREATETABLE;
-  }
 }
 
 int main() {
     setup();
     int session_status = COMMAND;
+    char current_table[64];
+
 	while (session_status) {
         print_prompt(session_status);
         char* input = read_input();
-        execute(&session_status ,input);
+        execute(&session_status ,input, current_table);
         free(input);
     }
 }
