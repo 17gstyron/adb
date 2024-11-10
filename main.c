@@ -106,7 +106,6 @@ uint32_t update_column_count(FILE *file) {
     num_columns++;
     fwrite(&num_columns, sizeof(uint32_t), 1, file);
 
-    printf("%u", num_columns);
     return num_columns;
 }
 
@@ -149,6 +148,10 @@ char* build_command(char *command) {
 
 
 void execute(int *session_status, char *command, char *current_table) {
+    // TODO - check for <LEADER_KEY> if so check for list of commands outside of inputs from certain modes
+    // like createtable mode, <LEADER_KEY>exit should have priority over the name input of the table
+    // dont really care to consider if table name starts with <LEADER_KEY> just dont do that
+
     if (strcmp(command, build_command("exit")) == 0) {
         *session_status = EXIT;
     } else if (*command == 27) { // escape + enter to return to start
