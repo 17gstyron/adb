@@ -9,6 +9,7 @@
 #define RED        "\033[0;31m"
 #define GREEN      "\033[0;32m"
 #define RESET      "\033[0m"
+#define YELLOW     "\033[0;33m"
 
 char LEADER_KEY = ':';
 
@@ -53,7 +54,7 @@ void remove_newline(char *command) {
     }
 }
 
-void print_prompt(int session_status) {
+void print_prompt(int session_status, const char current_table[64]) {
     if (session_status == COMMAND) {
         printf("> ");
     } else if(session_status == TABLE) {
@@ -61,7 +62,7 @@ void print_prompt(int session_status) {
     } else if(session_status == CREATETABLE) {
         printf("CREATE_TABLE> ");
     } else if(session_status == CREATECOLUMN) {
-        printf("CREATE_COLUMN> ");
+        printf("CREATE_COLUMN[%s%s%s]> ", YELLOW, current_table, RESET);
     } else if(session_status == INSERT) {
         printf("INSERT> ");
     } else if(session_status == SELECT) {
@@ -174,6 +175,7 @@ void execute(int *session_status, char *command, char *current_table) {
         }
     } else if (*session_status == CREATECOLUMN) {
         if (strcmp(command, build_command("done")) == 0) {
+            memset(current_table, 0, sizeof(&current_table));
             *session_status = COMMAND;
         } else {
             remove_newline(command);
@@ -195,7 +197,7 @@ int main() {
     char current_table[64];
 
 	while (session_status) {
-        print_prompt(session_status);
+        print_prompt(session_status, current_table);
         char* input = read_input();
         execute(&session_status ,input, current_table);
         free(input);
