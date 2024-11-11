@@ -6,6 +6,10 @@
 #include <sys/types.h>
 #include <stdint.h>
 
+#define RED        "\033[0;31m"
+#define GREEN      "\033[0;32m"
+#define RESET      "\033[0m"
+
 char LEADER_KEY = ':';
 
 enum SESSION_STATUS {
@@ -128,9 +132,8 @@ int create_column(const char table_name[64], const char column_name[64]) {
 
     // write
     int results = fwrite(column_name, sizeof(char[64]), 1, file);
-    if (results) {
-        return -1;
-    }
+    // TODO check results?
+
     fclose(file);
     return 0;
 }
@@ -145,7 +148,6 @@ char* build_command(char *command) {
     strcat(cmd, suffix);
     return cmd;
 }
-
 
 void execute(int *session_status, char *command, char *current_table) {
     // TODO - check for <LEADER_KEY> if so check for list of commands outside of inputs from certain modes
@@ -164,14 +166,22 @@ void execute(int *session_status, char *command, char *current_table) {
         remove_newline(command);
         int t = create_table(command);
         if (t == 0) {
+            printf(GREEN "Table created.\n" RESET);
             strcpy(current_table, command);
             *session_status = CREATECOLUMN;
         } else {
             // error
         }
     } else if (*session_status == CREATECOLUMN) {
-        remove_newline(command);
-        int t = create_column(current_table, command);
+        if (strcmp(command, build_command("done")) == 0) {
+            *session_status = COMMAND;
+        } else {
+            remove_newline(command);
+            int t = create_column(current_table, command);
+            if (t == 0) {
+                printf(GREEN "Column created.\n" RESET);
+            }
+        }
     } else if (strcmp(command, build_command("table")) == 0) {
         *session_status = TABLE;
     } else if (strcmp(command, build_command("createtable")) == 0) {
