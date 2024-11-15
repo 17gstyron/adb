@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #define RED        "\033[0;31m"
 #define GREEN      "\033[0;32m"
@@ -54,11 +55,20 @@ void remove_newline(char *command) {
     }
 }
 
+bool startsWith(const char *str, const char *prefix) {
+    size_t prefix_len = strlen(prefix);
+    size_t str_len = strlen(str);
+    if (prefix_len > str_len) {
+        return false;
+    }
+    return strncmp(str, prefix, prefix_len) == 0;
+}
+
 void print_prompt(int session_status, const char current_table[64]) {
     if (session_status == COMMAND) {
         printf("> ");
     } else if(session_status == TABLE) {
-        printf("TABLE> ");
+       printf("Table[%s%s%s]> ", YELLOW, current_table, RESET);
     } else if(session_status == CREATETABLE) {
         printf("CREATE_TABLE> ");
     } else if(session_status == CREATECOLUMN) {
@@ -155,10 +165,9 @@ void execute(int *session_status, char *command, char *current_table) {
     // like createtable mode, <LEADER_KEY>exit should have priority over the name input of the table
     // dont really care to consider if table name starts with <LEADER_KEY> just dont do that
 
+    // TODO home command? 
     if (strcmp(command, build_command("exit")) == 0) {
         *session_status = EXIT;
-    } else if (*command == 27) { // escape + enter to return to start
-        *session_status = COMMAND;
     } else if (*session_status == TABLE) {
         if (strcmp(command, build_command("insert")) == 0) {
             *session_status = INSERT;
@@ -184,8 +193,17 @@ void execute(int *session_status, char *command, char *current_table) {
                 printf(GREEN "Column created.\n" RESET);
             }
         }
-    } else if (strcmp(command, build_command("table")) == 0) {
-        *session_status = TABLE;
+    } else if (startsWith(command, ":table")) { // TODO build with dynamic leader key
+        char *table_name;
+        strtok(command, " ");
+        table_name = strtok(NULL, " ");
+        if (table_name == NULL) { // TODO check if table exists
+            printf("Provide existing table name\n");
+        } else {
+            remove_newline(table_name);
+            strcpy(current_table, table_name);
+            *session_status = TABLE;
+        }
     } else if (strcmp(command, build_command("createtable")) == 0) {
         *session_status = CREATETABLE;
     }
@@ -218,4 +236,3 @@ int main() {
 //
 // TODO:
 // change session_status to mode
-//
