@@ -68,7 +68,7 @@ void print_prompt(int session_status, const char current_table[64]) {
     if (session_status == COMMAND) {
         printf("> ");
     } else if(session_status == TABLE) {
-       printf("Table[%s%s%s]> ", YELLOW, current_table, RESET);
+        printf("Table[%s%s%s]> ", YELLOW, current_table, RESET);
     } else if(session_status == CREATETABLE) {
         printf("CREATE_TABLE> ");
     } else if(session_status == CREATECOLUMN) {
