@@ -33,6 +33,10 @@ char* read_input() {
     size_t bufsize = 32;
 
     characters = getline(&buffer, &bufsize, stdin);
+    if (characters == -1) {
+        free(buffer);
+        return NULL;
+    }
     return buffer;
 }
 
@@ -47,12 +51,13 @@ int setup() {
 
 void remove_newline(char *command) {
     // Find the position of the newline character, if it exists
-    size_t len = strcspn(command, "\n");
-    
-    // If a newline was found, replace it with a null terminator
-    if (command[len] == '\n') {
-        command[len] = '\0';
-    }
+    if (command) {
+        size_t len = strcspn(command, "\n"); 
+        // If a newline was found, replace it with a null terminator
+        if (command[len] == '\n') {
+            command[len] = '\0';
+        }
+    } 
 }
 
 bool startsWith(const char *str, const char *prefix) {
@@ -149,11 +154,11 @@ int create_column(const char table_name[64], const char column_name[64]) {
     return 0;
 }
 
+// Why am I building command to compare instead of stripping the incomming command?
 char* build_command(char *command) {
     char *prefix = &LEADER_KEY;
     char *suffix = "\n";
     char *cmd = malloc(strlen(prefix) + strlen(command) + strlen(suffix) + 1);
-
     strcpy(cmd, prefix);
     strcat(cmd, command);
     strcat(cmd, suffix);
@@ -165,8 +170,10 @@ void execute(int *session_status, char *command, char *current_table) {
     // like createtable mode, <LEADER_KEY>exit should have priority over the name input of the table
     // dont really care to consider if table name starts with <LEADER_KEY> just dont do that
 
-    // TODO home command? 
-    if (strcmp(command, build_command("exit")) == 0) {
+    if (strcmp(command, build_command(":")) == 0) {
+            *session_status = COMMAND;
+    }
+    else if (strcmp(command, build_command("exit")) == 0) {
         *session_status = EXIT;
     } else if (*session_status == TABLE) {
         if (strcmp(command, build_command("insert")) == 0) {
@@ -183,26 +190,33 @@ void execute(int *session_status, char *command, char *current_table) {
             // error
         }
     } else if (*session_status == CREATECOLUMN) {
-        if (strcmp(command, build_command("done")) == 0) {
-            memset(current_table, 0, sizeof(&current_table));
-            *session_status = COMMAND;
-        } else {
-            remove_newline(command);
-            int t = create_column(current_table, command);
-            if (t == 0) {
-                printf(GREEN "Column created.\n" RESET);
-            }
+        remove_newline(command);
+        int t = create_column(current_table, command);
+        if (t == 0) {
+            printf(GREEN "Column created.\n" RESET);
         }
-    } else if (startsWith(command, ":table")) { // TODO build with dynamic leader key
-        char *table_name;
-        strtok(command, " ");
-        table_name = strtok(NULL, " ");
-        if (table_name == NULL) { // TODO check if table exists
-            printf("Provide existing table name\n");
+    } else if (strcmp(command, build_command("table")) >= 0) { // TODO build with dynamic leader key
+        const char delim[2] = " ";
+        char *commandToken = strtok(command, delim); // command seperated by space
+        char *tableName = strtok(NULL, delim);
+
+        if (tableName == NULL || strcmp(tableName, "") == 0) { // TODO check if table exists
+            printf(RED "Enter table name.\n" RESET);
         } else {
-            remove_newline(table_name);
-            strcpy(current_table, table_name);
-            *session_status = TABLE;
+            // For checking if table exists
+            remove_newline(tableName);
+            char path[256];
+            strcpy(path, "tables/");
+            strcat(path, tableName);
+            FILE *file;
+            file = fopen(path, "r");
+            if (file == NULL) {
+                printf(RED "Table does not exists.\n" RESET);
+            } else {
+                strcpy(current_table, tableName);
+                *session_status = TABLE;
+                fclose(file);
+            }
         }
     } else if (strcmp(command, build_command("createtable")) == 0) {
         *session_status = CREATETABLE;
